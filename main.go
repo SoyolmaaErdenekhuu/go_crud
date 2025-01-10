@@ -30,6 +30,7 @@ const (
 )
 
 type User struct {
+	Id   int    `json:"id"`
 	Age  int    `json:"age"`
 	Name string `json:"name"`
 	Pass string `json:"pass"`
@@ -37,7 +38,7 @@ type User struct {
 
 func createUser(c *gin.Context) {
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password= %s dbname=%s sslmode=disable",
+		"password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
 
 	db, err := sql.Open("postgres", psqlInfo)
@@ -61,6 +62,42 @@ func createUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User created successfully"})
 }
 
+func getUsers(c *gin.Context) {
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
+		" password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+
+	db, err := sql.Open("postgres", psqlInfo)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
+		return
+	}
+
+	rows, err := db.Query("SELECT id, \"Age\", \"Name\", \"Pass\" FROM t_user")
+	fmt.Println(err)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query database"})
+		return
+	}
+
+	var users []User
+	for rows.Next() {
+		var user User
+		if err := rows.Scan(&user.Id, &user.Age, &user.Name, &user.Pass); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan data"})
+			return
+		}
+		users = append(users, user)
+	}
+	if len(users) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"message": "No user found"})
+		return
+	}
+	rows.Close()
+	db.Close()
+	c.JSON(http.StatusOK, gin.H{"users": users})
+
+}
 func main() {
 	// psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
 	// 	"password= %s dbname=%s sslmode=disable",
@@ -93,7 +130,8 @@ func main() {
 	// fmt.Println(users)
 	router := gin.Default()
 	router.GET("/niilber", calcNiilber)
-	router.POST("/user", createUser)
+	router.POST("/user/create", createUser)
+	router.GET("/user/read", getUsers)
 	log.Fatal(router.Run(":3456"))
 
 }
