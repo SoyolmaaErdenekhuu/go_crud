@@ -96,8 +96,31 @@ func getUsers(c *gin.Context) {
 	rows.Close()
 	db.Close()
 	c.JSON(http.StatusOK, gin.H{"users": users})
-
 }
+
+func deleteUser(c *gin.Context) {
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
+		"password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+
+	db, err := sql.Open("postgres", psqlInfo)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
+		return
+	}
+	id := c.Param("id")
+	query := `DELETE FROM t_user WHERE "id" = $1`
+
+	_, err = db.Exec(query, id)
+	fmt.Println(err)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
+}
+
 func main() {
 	// psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
 	// 	"password= %s dbname=%s sslmode=disable",
@@ -132,6 +155,7 @@ func main() {
 	router.GET("/niilber", calcNiilber)
 	router.POST("/user/create", createUser)
 	router.GET("/user/read", getUsers)
+	router.DELETE("/user/delete/:id", deleteUser)
 	log.Fatal(router.Run(":3456"))
 
 }
